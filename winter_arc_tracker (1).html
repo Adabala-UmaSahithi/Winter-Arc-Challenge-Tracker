@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Winter Arc Habit Tracker</title>
+<style>
+:root{--bg:#f5f7fb;--card:#fff;--ink:#20283a;--muted:#6b7280;--accent:#6558d3;--line:#e5e7ef;--green:#16834b;--red:#c2410c}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+header{background:linear-gradient(120deg,#4f46b8,#8b5cf6);color:#fff;padding:28px 18px;text-align:center}
+header h1{margin:0;font-size:clamp(24px,4vw,34px)}header p{margin:6px 0 0;opacity:.9}
+main{max-width:1050px;margin:22px auto;padding:0 15px 40px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:16px;box-shadow:0 5px 20px #1f29370a}
+.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}.between{justify-content:space-between}
+label{font-weight:600;font-size:13px;color:#475569;display:block;margin-bottom:5px}
+input,select,textarea,button{font:inherit}input[type=date],input[type=text],input[type=number],select,textarea{border:1px solid #cfd4e2;border-radius:9px;padding:9px 10px;background:#fff;color:var(--ink);max-width:100%}
+input[type=number]{width:105px}input[type=text]{min-width:180px}textarea{width:100%;min-height:76px;resize:vertical}
+button{border:0;border-radius:9px;padding:9px 13px;background:var(--accent);color:white;font-weight:650;cursor:pointer}
+button.secondary{background:#eef0fa;color:#4338a5}button.danger{background:#fff0eb;color:#b93815}button.small{font-size:12px;padding:6px 9px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px}.stat{background:#f7f7ff;border-radius:12px;padding:12px}.stat strong{font-size:23px;display:block}.stat span{font-size:12px;color:var(--muted)}
+.progress{height:10px;background:#e9eaf2;border-radius:99px;overflow:hidden;margin-top:10px}.progress div{height:100%;background:linear-gradient(90deg,#6558d3,#a78bfa);width:0;transition:width .2s}
+table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:11px 8px;border-bottom:1px solid var(--line);vertical-align:middle}th{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}td:first-child{font-weight:600}.habit-name{display:flex;align-items:center;gap:9px}.emoji{font-size:20px}
+input[type=checkbox]{width:19px;height:19px;accent-color:var(--accent);cursor:pointer}
+.target{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.target input{width:85px}.muted{color:var(--muted);font-size:13px}.actions{display:flex;gap:6px;flex-wrap:wrap}.empty{text-align:center;color:var(--muted);padding:24px}
+dialog{border:0;border-radius:16px;padding:0;width:min(480px,calc(100% - 24px));box-shadow:0 20px 60px #0003}dialog::backdrop{background:#11182788}.modal{padding:20px}.modal h2{margin:0 0 14px}.field{margin-bottom:12px}.field input,.field select{width:100%}.modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}
+footer{text-align:center;color:var(--muted);font-size:12px;padding:8px}
+@media(max-width:650px){table,tbody,tr,td{display:block;width:100%}thead{display:none}tr{border:1px solid var(--line);border-radius:12px;margin:10px 0;padding:8px}td{border:0;padding:5px 2px}td[data-label]::before{content:attr(data-label) ": ";font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;margin-right:5px}.habit-name{display:inline-flex}.actions{margin-top:4px}}
+</style>
+</head>
+<body>
+<header><h1>❄️ My Winter Arc</h1><p>Build consistency, one day at a time · Oct 2, 2026 – Jan 1, 2027</p></header>
+<main>
+<section class="card">
+ <div class="row between">
+  <div><label for="day">Selected day</label><input id="day" type="date" min="2026-10-02" max="2027-01-01"></div>
+  <div class="actions"><button class="secondary" id="todayBtn">Today</button><button class="secondary" id="exportBtn">Export data</button></div>
+ </div>
+ <div class="stats" style="margin-top:16px">
+  <div class="stat"><strong id="doneCount">0/0</strong><span>Habits completed</span></div>
+  <div class="stat"><strong id="percent">0%</strong><span>Daily completion</span></div>
+  <div class="stat"><strong id="streak">0</strong><span>Current streak (any habit)</span></div>
+ </div>
+ <div class="progress"><div id="progressBar"></div></div>
+</section>
+<section class="card">
+ <div class="row between"><div><h2 style="margin:0">Daily habits & targets</h2><div class="muted">Add, edit, or remove habits whenever your goals change.</div></div><button id="addBtn">＋ Add habit</button></div>
+ <div id="habitTableWrap"></div>
+</section>
+<section class="card">
+ <label for="notes">Daily notes / reflection</label><textarea id="notes" placeholder="What went well today? What can I improve tomorrow?"></textarea>
+ <div class="row between" style="margin-top:12px"><span class="muted">Your data is saved automatically in this browser.</span><button class="danger" id="clearBtn">Clear this day</button></div>
+</section>
+<footer>Tip: Export your data occasionally as a backup. Clearing browser storage may erase your tracker.</footer>
+</main>
+<dialog id="habitDialog"><form method="dialog" class="modal" id="habitForm">
+ <h2 id="dialogTitle">Add a habit</h2>
+ <div class="field"><label for="habitName">Habit name</label><input id="habitName" type="text" maxlength="60" placeholder="e.g., Practice Java" required></div>
+ <div class="field"><label for="habitType">Tracking type</label><select id="habitType"><option value="check">Done / not done</option><option value="number">Numeric target (e.g., pages, minutes, litres)</option></select></div>
+ <div class="field" id="targetField" hidden><label for="habitTarget">Daily target</label><input id="habitTarget" type="number" min="0.01" step="any" value="10"></div>
+ <div class="field" id="unitField" hidden><label for="habitUnit">Unit (optional)</label><input id="habitUnit" type="text" maxlength="20" placeholder="pages, minutes, litres..."></div>
+ <div class="field"><label for="habitEmoji">Icon (optional)</label><input id="habitEmoji" type="text" maxlength="4" placeholder="🌱"></div>
+ <div class="modal-actions"><button type="button" class="secondary" id="cancelBtn">Cancel</button><button type="submit" id="saveHabitBtn">Save habit</button></div>
+</form></dialog>
+<script>
+const KEY='winterArcTracker_v2';
+const defaultHabits=[
+ {id:'wake',name:'Wake up by 6 AM',type:'check',emoji:'🌅'},
+ {id:'exercise',name:'Yoga / exercise / stretching',type:'check',emoji:'🧘'},
+ {id:'dance',name:'Classical dance practice',type:'check',emoji:'💃'},
+ {id:'water',name:'Drink water',type:'number',target:3,unit:'litres',emoji:'💧'},
+ {id:'food',name:'Protein- and fiber-rich food',type:'check',emoji:'🥗'},
+ {id:'reading',name:'Read (English or Telugu)',type:'number',target:10,unit:'pages',emoji:'📚'},
+ {id:'meditation',name:'Meditation',type:'number',target:15,unit:'minutes',emoji:'🧘‍♀️'},
+ {id:'dsa',name:'Solve DSA problems',type:'number',target:2,unit:'problems',emoji:'💻'},
+ {id:'english',name:'English / bank exam preparation',type:'number',target:1,unit:'hours',emoji:'📝'},
+ {id:'aptitude',name:'Aptitude preparation',type:'number',target:1,unit:'hours',emoji:'🧠'},
+ {id:'sleep',name:'Sleep by 10 PM',type:'check',emoji:'🌙'},
+ {id:'social',name:'Social media limit (30 min)',type:'check',emoji:'📵'},
+ {id:'movies',name:'Movies (maximum 7 per week)',type:'number',target:1,unit:'movies today',emoji:'🎬'}
+];
+let state=loadState(), editingId=null;
+function loadState(){try{return JSON.parse(localStorage.getItem(KEY))||{habits:defaultHabits,days:{}}}catch(e){return{habits:defaultHabits,days:{}}}}
+function save(){localStorage.setItem(KEY,JSON.stringify(state))}
+function dayKey(){return document.getElementById('day').value}
+function dayData(){const k=dayKey();if(!state.days[k])state.days[k]={values:{},notes:''};return state.days[k]}
+function escapeHtml(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function render(){
+ const data=dayData(),wrap=document.getElementById('habitTableWrap');
+ if(!state.habits.length){wrap.innerHTML='<div class="empty">No habits yet. Click “Add habit” to create your first one.</div>'}
+ else{
+ let rows=state.habits.map(h=>{
+  const v=data.values[h.id];let control='';
+  if(h.type==='check')control=`<input aria-label="Mark ${escapeHtml(h.name)} complete" type="checkbox" ${v===true?'checked':''} onchange="setCheck('${h.id}',this.checked)">`;
+  else control=`<div class="target"><input aria-label="${escapeHtml(h.name)} progress" type="number" min="0" step="any" value="${v??''}" placeholder="0" onchange="setNumber('${h.id}',this.value)"><span class="muted">/ ${h.target} ${escapeHtml(h.unit||'')}</span></div>`;
+  const complete=h.type==='check'?v===true:Number(v||0)>=Number(h.target);
+  return `<tr><td data-label="Habit"><span class="habit-name"><span class="emoji">${escapeHtml(h.emoji||'•')}</span>${escapeHtml(h.name)}</span></td><td data-label="Progress">${control}</td><td data-label="Status"><span style="color:${complete?'var(--green)':'var(--muted)'}">${complete?'✓ Complete':'In progress'}</span></td><td data-label="Manage"><div class="actions"><button class="small secondary" onclick="editHabit('${h.id}')">Edit</button><button class="small danger" onclick="deleteHabit('${h.id}')">Delete</button></div></td></tr>`;
+ }).join('');
+ wrap.innerHTML=`<table><thead><tr><th>Habit</th><th>Progress</th><th>Status</th><th>Manage</th></tr></thead><tbody>${rows}</tbody></table>`;
+ }
+ document.getElementById('notes').value=data.notes||'';
+ const completed=state.habits.filter(h=>h.type==='check'?data.values[h.id]===true:Number(data.values[h.id]||0)>=Number(h.target)).length;
+ const pct=state.habits.length?Math.round(completed/state.habits.length*100):0;
+ document.getElementById('doneCount').textContent=`${completed}/${state.habits.length}`;
+ document.getElementById('percent').textContent=pct+'%';
+ document.getElementById('progressBar').style.width=pct+'%';
+ document.getElementById('streak').textContent=String(calcStreak());
+}
+function setCheck(id,val){dayData().values[id]=val;save();renderStatsOnly()}
+function setNumber(id,val){dayData().values[id]=val===''?'':Math.max(0,Number(val));save();renderStatsOnly()}
+function renderStatsOnly(){const data=dayData();const completed=state.habits.filter(h=>h.type==='check'?data.values[h.id]===true:Number(data.values[h.id]||0)>=Number(h.target)).length;const pct=state.habits.length?Math.round(completed/state.habits.length*100):0;document.getElementById('doneCount').textContent=`${completed}/${state.habits.length}`;document.getElementById('percent').textContent=pct+'%';document.getElementById('progressBar').style.width=pct+'%';document.getElementById('streak').textContent=String(calcStreak())}
+function calcStreak(){let count=0,d=new Date(dayKey()+'T12:00:00');for(let i=0;i<366;i++){const k=d.toISOString().slice(0,10),day=state.days[k];if(!day||!state.habits.some(h=>h.type==='check'?day.values?.[h.id]===true:Number(day.values?.[h.id]||0)>=Number(h.target)))break;count++;d.setDate(d.getDate()-1)}return count}
+const dlg=document.getElementById('habitDialog'),form=document.getElementById('habitForm');
+function syncType(){const numeric=document.getElementById('habitType').value==='number';document.getElementById('targetField').hidden=!numeric;document.getElementById('unitField').hidden=!numeric}
+function openAdd(){editingId=null;form.reset();document.getElementById('dialogTitle').textContent='Add a habit';document.getElementById('habitType').value='check';document.getElementById('habitTarget').value=1;syncType();dlg.showModal()}
+function editHabit(id){const h=state.habits.find(x=>x.id===id);if(!h)return;editingId=id;document.getElementById('dialogTitle').textContent='Edit habit';document.getElementById('habitName').value=h.name;document.getElementById('habitType').value=h.type;document.getElementById('habitTarget').value=h.target??1;document.getElementById('habitUnit').value=h.unit??'';document.getElementById('habitEmoji').value=h.emoji??'';syncType();dlg.showModal()}
+function deleteHabit(id){const h=state.habits.find(x=>x.id===id);if(!h||!confirm(`Delete "${h.name}"? This also removes its saved progress for all days.`))return;state.habits=state.habits.filter(x=>x.id!==id);Object.values(state.days).forEach(d=>delete d.values[id]);save();render()}
+form.addEventListener('submit',e=>{e.preventDefault();const name=document.getElementById('habitName').value.trim(),type=document.getElementById('habitType').value;if(!name)return;const h={id:editingId||('h_'+Date.now()+'_'+Math.random().toString(36).slice(2,7)),name,type,emoji:document.getElementById('habitEmoji').value.trim()||'•'};if(type==='number'){h.target=Number(document.getElementById('habitTarget').value);h.unit=document.getElementById('habitUnit').value.trim();if(!(h.target>0)){alert('Please enter a target greater than 0.');return}}if(editingId){const i=state.habits.findIndex(x=>x.id===editingId);state.habits[i]=h}else state.habits.push(h);save();dlg.close();render()});
+document.getElementById('habitType').addEventListener('change',syncType);
+document.getElementById('addBtn').addEventListener('click',openAdd);
+document.getElementById('cancelBtn').addEventListener('click',()=>dlg.close());
+document.getElementById('day').addEventListener('change',render);
+document.getElementById('notes').addEventListener('input',()=>{dayData().notes=document.getElementById('notes').value;save()});
+document.getElementById('todayBtn').addEventListener('click',()=>{const t=new Date();document.getElementById('day').value=[t.getFullYear(),String(t.getMonth()+1).padStart(2,'0'),String(t.getDate()).padStart(2,'0')].join('-');render()});
+document.getElementById('clearBtn').addEventListener('click',()=>{if(confirm('Clear all progress and notes for this day?')){state.days[dayKey()]={values:{},notes:''};save();render()}});
+document.getElementById('exportBtn').addEventListener('click',()=>{const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='winter-arc-backup.json';a.click();URL.revokeObjectURL(url)});
+const initial=new Date();document.getElementById('day').value=[initial.getFullYear(),String(initial.getMonth()+1).padStart(2,'0'),String(initial.getDate()).padStart(2,'0')].join('-');render();
+</script>
+</body>
+</html>
